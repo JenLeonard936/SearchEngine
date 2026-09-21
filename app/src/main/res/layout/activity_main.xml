@@ -20,7 +20,7 @@
         android:rotationY="-122"
         android:scaleX="2"
         android:scaleY="2"
-        android:text="you used to call me on my cell phone"
+        android:text=" sideways text"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
