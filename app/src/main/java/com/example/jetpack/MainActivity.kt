@@ -1,6 +1,8 @@
 package com.example.jetpack
 
 import android.os.Bundle
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -13,7 +15,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.example.jetpack.ui.theme.JetpackTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Menu
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,9 +32,20 @@ class MainActivity : ComponentActivity() {
                 var currentQuery by rememberSaveable { mutableStateOf("") }
                 var searchResults by rememberSaveable { mutableStateOf(emptyList<Site>()) }
                 var isSearching by rememberSaveable { mutableStateOf(true) }
+                var isSite by rememberSaveable {mutableStateOf(false)}
+                var curSite by rememberSaveable {mutableStateOf("https://error.com")}
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    if (isSearching) {
+                    if (isSite){
+                        SiteScreen(
+                            url = curSite,
+                            modifier = Modifier.padding(innerPadding),
+                            onBack = {isSite = false},
+                            onClose = {isSite = false
+                                isSearching = true}
+                        )
+                    }
+                    else if (isSearching) {
                         SearchScreen(
                             onSearch = { query ->
                                 currentQuery = query
@@ -36,6 +55,12 @@ class MainActivity : ComponentActivity() {
                                         title = "Example Result for $query",
                                         url = "https://example.com",
                                         description = "This is a sample search result description for $query."
+                                    ),
+                                    Site(
+                                        id = 2,
+                                        title = "you",
+                                        url = "https://google.com",
+                                        description = "describing you"
                                     )
                                 )
                                 isSearching = false
@@ -47,7 +72,11 @@ class MainActivity : ComponentActivity() {
                             query = currentQuery,
                             searchResults = searchResults,
                             modifier = Modifier.padding(innerPadding),
-                            onBack = { isSearching = true }
+                            onBack = { isSearching = true },
+                            toPage = { query ->
+                                curSite = query
+                                isSite = true
+                            }
                         )
                     }
                 }
@@ -62,23 +91,6 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
         text = "Hello $name!",
         modifier = modifier
     )
-}
-
-@Composable
-fun SearchApp(modifier: Modifier = Modifier) {
-    val sm : SearchModel = viewModel()
-    val navController = rememberNavController()
-    NavHost(navController,startDestination="login") {
-        composable(route="login") {
-            SearchScreen(sm,toResults = { navController.navigate("results")}, modifier = modifier)
-        }
-        composable(route="directory") {
-            ResultsScreen(sm,toSearch = { navController.navigate("search")}, toPage = {navController.navigate("page")}, modifier = modifier)
-        }
-        composable(route="create") {
-            PageScreen(sm,toResults = { navController.navigate("results")}, modifier = modifier)
-        }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -132,7 +144,8 @@ fun ResultsScreen(
     query: String,
     searchResults: List<Site>,
     modifier: Modifier = Modifier,
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    toPage: (String) -> Unit = {}
 ) {
     Scaffold(
         modifier = modifier,
@@ -169,7 +182,7 @@ fun ResultsScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(searchResults) { site ->
-                    SiteCard(site = site)
+                    SiteCard(site = site, onClick = { toPage(site.url)})
                 }
             }
         }
@@ -179,11 +192,13 @@ fun ResultsScreen(
 @Composable
 fun SiteCard(
     site: Site,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        onClick = onClick
     ) {
         Column(
             modifier = Modifier
@@ -210,4 +225,43 @@ fun SiteCard(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SiteScreen(
+    modifier: Modifier = Modifier,
+    url: String = "https://www.google.com",
+    onBack: () -> Unit = {},
+    onClose: () -> Unit = {}
+) {
+    BottomAppBar(
+        actions = {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = "Back"
+                )
+            }
+            IconButton(onClick = onClose) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Close"
+                )
+            }
+        }
+    )
+    AndroidView(
+        factory = { context ->
+            WebView(context).apply {
+                webViewClient = WebViewClient()
+                settings.javaScriptEnabled = true
+                loadUrl(url)
+            }
+        },
+        update = { webView ->
+            webView.loadUrl(url)
+        },
+        modifier = modifier
+    )
 }
